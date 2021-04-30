@@ -100,6 +100,7 @@ class FlutterBlue {
 
     if (_isScanning.value == true) {
       //throw Exception('Another scan is already in progress.');
+      return;
     }
 
     // Emit to isScanning
