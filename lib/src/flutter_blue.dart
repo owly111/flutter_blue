@@ -99,7 +99,7 @@ class FlutterBlue {
       ..serviceUuids.addAll(withServices.map((g) => g.toString()).toList());
 
     if (_isScanning.value == true) {
-      throw Exception('Another scan is already in progress.');
+      //throw Exception('Another scan is already in progress.');
     }
 
     // Emit to isScanning
