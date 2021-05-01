@@ -12,13 +12,10 @@ class FlutterBlue {
   Stream<MethodCall> get _methodStream => _methodStreamController
       .stream; // Used internally to dispatch methods from platform.
 
-  Stream<BluetoothState> _stateStream;
-
   /// Singleton boilerplate
   FlutterBlue._() {
-    _channel.setMethodCallHandler((MethodCall call) {
+    _channel.setMethodCallHandler((MethodCall call) async {
       _methodStreamController.add(call);
-      return;
     });
 
     _setLogLevelIfAvailable();
@@ -26,7 +23,7 @@ class FlutterBlue {
 
   static FlutterBlue _instance = new FlutterBlue._();
   static FlutterBlue get instance => _instance;
-
+  
   static reinitialize() {
     _instance = new FlutterBlue._();
   }
@@ -65,12 +62,10 @@ class FlutterBlue {
         .then((buffer) => new protos.BluetoothState.fromBuffer(buffer))
         .then((s) => BluetoothState.values[s.state.value]);
 
-    _stateStream ??= _stateChannel
+    yield* _stateChannel
         .receiveBroadcastStream()
         .map((buffer) => new protos.BluetoothState.fromBuffer(buffer))
-        .map((s) => BluetoothState.values[s.state.value])
-        .doOnCancel(() => _stateStream = null);
-    yield* _stateStream;
+        .map((s) => BluetoothState.values[s.state.value]);
   }
 
   /// Retrieve a list of connected devices
@@ -89,10 +84,6 @@ class FlutterBlue {
     }
   }
 
-  Future<dynamic> initWithDelegate() {
-    return _channel.invokeMethod('initWithDelegate', {});
-  }
-
   /// Starts a scan for Bluetooth Low Energy devices and returns a stream
   /// of the [ScanResult] results as they are received.
   ///
@@ -103,7 +94,7 @@ class FlutterBlue {
     ScanMode scanMode = ScanMode.lowLatency,
     List<Guid> withServices = const [],
     List<Guid> withDevices = const [],
-    Duration timeout,
+    Duration? timeout,
     bool allowDuplicates = false,
   }) async* {
     var settings = protos.ScanSettings.create()
@@ -145,7 +136,7 @@ class FlutterBlue {
         .map((buffer) => new protos.ScanResult.fromBuffer(buffer))
         .map((p) {
       final result = new ScanResult.fromProto(p);
-      final list = _scanResults.value;
+      final list = _scanResults.value ?? [];
       int index = list.indexOf(result);
       if (index != -1) {
         list[index] = result;
@@ -169,7 +160,7 @@ class FlutterBlue {
     ScanMode scanMode = ScanMode.lowLatency,
     List<Guid> withServices = const [],
     List<Guid> withDevices = const [],
-    Duration timeout,
+    Duration? timeout,
     bool allowDuplicates = false,
   }) async {
     await scan(
@@ -260,8 +251,6 @@ class DeviceIdentifier {
 }
 
 class ScanResult {
-  const ScanResult({this.device, this.advertisementData, this.rssi});
-
   ScanResult.fromProto(protos.ScanResult p)
       : device = new BluetoothDevice.fromProto(p.device),
         advertisementData =
@@ -290,19 +279,11 @@ class ScanResult {
 
 class AdvertisementData {
   final String localName;
-  final int txPowerLevel;
+  final int? txPowerLevel;
   final bool connectable;
   final Map<int, List<int>> manufacturerData;
   final Map<String, List<int>> serviceData;
   final List<String> serviceUuids;
-
-  AdvertisementData(
-      {this.localName,
-      this.txPowerLevel,
-      this.connectable,
-      this.manufacturerData,
-      this.serviceData,
-      this.serviceUuids});
 
   AdvertisementData.fromProto(protos.AdvertisementData p)
       : localName = p.localName,
